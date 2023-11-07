@@ -46,6 +46,8 @@ class SYSTEM():
         self.offset = None
         self.machine = MACHINE()
 
+        self.get_score = False
+
         # GUI
         self.root = Tk()
 
@@ -340,6 +342,8 @@ class SYSTEM():
 
     # Score Checking Functions
     def check_triangle(self, line):
+        self.get_score = False
+
         point1 = line[0]
         point2 = line[1]
 
@@ -375,6 +379,7 @@ class SYSTEM():
 
                     color = USER_COLOR if self.turn=="USER" else MACHINE_COLOR
                     self.occupy_triangle(triangle, color=color)
+                    self.get_score = True
                 
     # Organization Functions
     def organize_points(self, point_list):
@@ -389,7 +394,7 @@ class SYSTEM():
             self.board.delete(self.last_line)
             self.change_turn()
             
-            if self.triangles:
+            if self.get_score and self.triangles:
                 recent_triangle = self.triangles[-1]
                 self.triangles.remove(recent_triangle)
                 self.board.delete(self.last_triangle)
