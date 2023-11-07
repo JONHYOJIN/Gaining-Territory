@@ -15,7 +15,7 @@ CANVAS_SIZE = 500
 
 # Lines
 LINE_WIDTH = 5
-LINE_COLOR = "SteelBlue4"
+LINE_COLOR = "dimgray"
 DRAWN_LINE_COLOR = "blue"
 
 # Circles

@@ -25,20 +25,19 @@ class MACHINE():
         self.triangles = [] # [(a, b), (c, d), (e, f)]
 
     def find_best_selection(self):
-        available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability(point1[0], point1[1], point2[0], point2[1])]
+        available = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability([point1, point2])]
         return random.choice(available)
     
-    def check_availability(self, start_x, start_y, end_x, end_y):
-        line = [(start_x, start_y), (end_x, end_y)]
-        line_string = LineString([(start_x, start_y), (end_x, end_y)])
+    def check_availability(self, line):
+        line_string = LineString(line)
 
         # Must be one of the whole points
-        condition1 = ((start_x, start_y) in self.whole_points) and ((end_x, end_y) in self.whole_points)
+        condition1 = (line[0] in self.whole_points) and (line[1] in self.whole_points)
         
         # Must not skip a dot
         condition2 = True
         for point in self.whole_points:
-            if point==(start_x, start_y) or point==(end_x, end_y):
+            if point==line[0] or point==line[1]:
                 continue
             else:
                 if bool(line_string.intersection(Point(point))):
@@ -47,7 +46,7 @@ class MACHINE():
         # Must not cross another line
         condition3 = True
         for l in self.drawn_lines:
-            if len(list(set([(start_x, start_y), (end_x, end_y), l[0], l[1]]))) == 3:
+            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
                 continue
             elif bool(line_string.intersection(LineString(l))):
                 condition3 = False
@@ -58,6 +57,6 @@ class MACHINE():
         if condition1 and condition2 and condition3 and condition4:
             return True
         else:
-            return False 
+            return False    
 
     

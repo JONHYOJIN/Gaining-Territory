@@ -21,15 +21,15 @@ class SYSTEM():
                * Line: [(x1, y1), (x2, y2)]
                     -> x값이 작은 점이 항상 왼쪽에 위치 (x값이 같을 경우, y값을 기준으로 함; organize_points 함수를 통해 적용)
             - whole_points: 전체 점(Point) 좌표의 집합
-            - location: 좌표 Index 집합 (e.g. [0, 1, 2, 3, 4, 5] for 5x5 Board)
             - triangles: 점령된 Triagnle 집합 (점수 계산 및 취소에 사용 됨)
                * Triagnle: [Point, Point, Point] 
-                    -> x값이 작은 점이 항상 왼쪽에 위치 (x값이 같을 경우, y값을 기준으로 함; organize_triangle 함수를 통해 적용)
+                    -> x값이 작은 점이 항상 왼쪽에 위치 (x값이 같을 경우, y값을 기준으로 함; organize_points 함수를 통해 적용)
             - turn: 선을 그어야 하는 Player
 
-            - location / offset: Line, Circle 등을 Canvas에 그리기 위한 "Canvas 상 좌표 값" 계산을 위해 사용
+            - interval / offset: Line, Circle 등을 Canvas에 그리기 위한 "Canvas 상 좌표 값" 계산을 위해 사용
+            - location: Canvas 상의 좌표 값
             - board_size: Board 판의 크기 (각 축이 갖는 상자의 수; 7로 고정)
-            - machine: MACHINE 객체 (USER는 별도의 객체를 사용하지 않음)
+            - machine: MACHINE 객체 ( USER는 별도의 객체를 사용하지 않음)
         
         """
         # Initialization
@@ -242,14 +242,13 @@ class SYSTEM():
         end_x = int(self.end_x.get())
         end_y = int(self.end_y.get())
 
-        start_x, start_y, end_x, end_y = self.organize_points(start_x, start_y, end_x, end_y)
+        line = self.organize_points([(start_x, start_y), (end_x, end_y)])
 
-        if self.check_availability("USER", start_x, start_y, end_x, end_y):
+        if self.check_availability("USER", line):
             self.label_warning.config(text="")
-            line = [(start_x, start_y), (end_x, end_y)]
             self.drawn_lines.append(line)
 
-            draw = [(self.location[start_x], self.location[start_y]), (self.location[end_x], self.location[end_y])]
+            draw = [(self.location[point[0]], self.location[point[1]]) for point in line]
             self.line(draw[0], draw[1], color=LINE_COLOR)
 
             self.check_triangle(line)
@@ -258,9 +257,12 @@ class SYSTEM():
             self.label_userscore2.config(text=self.score[0])
 
             if self.check_endgame():
-                f = lambda i: self.score[i]
-                winner = PLAYERS[max(range(len(self.score)), key=f)]
-                self.label_result.config(text=f"The Winner is the {winner}!!")
+                if self.score[0]==self.score[1]:
+                    self.label_result.config(text="The game ended in a tie...")
+                else:
+                    f = lambda i: self.score[i]
+                    winner = PLAYERS[max(range(len(self.score)), key=f)]
+                    self.label_result.config(text=f"The Winner is the {winner}!!")
 
         else:
             self.label_warning.config(text="Check the turn or the input!")
@@ -273,15 +275,13 @@ class SYSTEM():
         self.machine.triangles = self.triangles
 
         line = self.machine.find_best_selection()
+        line = self.organize_points(line)
 
-        start_x, start_y, end_x, end_y = self.organize_points(line[0][0], line[0][1], line[1][0], line[1][1])
-
-        if self.check_availability("MACHINE", start_x, start_y, end_x, end_y ):
+        if self.check_availability("MACHINE", line ):
             self.label_warning.config(text="")
-            line = [(start_x, start_y), (end_x, end_y)]
             self.drawn_lines.append(line)
 
-            draw = [(self.location[start_x], self.location[start_y]), (self.location[end_x], self.location[end_y])]
+            draw = [(self.location[point[0]], self.location[point[1]]) for point in line]
             self.line(draw[0], draw[1], color=LINE_COLOR)
 
             self.check_triangle(line)
@@ -290,24 +290,26 @@ class SYSTEM():
             self.label_machinescore2.config(text=self.score[1])
 
             if self.check_endgame():
-                f = lambda i: self.score[i]
-                winner = PLAYERS[max(range(len(self.score)), key=f)]
-                self.label_result.config(text=f"The Winner is the {winner}!!")
+                if self.score[0]==self.score[1]:
+                    self.label_result.config(text="The game ended in a tie...")
+                else:
+                    f = lambda i: self.score[i]
+                    winner = PLAYERS[max(range(len(self.score)), key=f)]
+                    self.label_result.config(text=f"The Winner is the {winner}!!")
 
         else:
             self.label_warning.config(text="Check the turn \nor the machine error!")
 
-    def check_availability(self, turn, start_x, start_y, end_x, end_y):
-        line = [(start_x, start_y), (end_x, end_y)]
-        line_string = LineString([(start_x, start_y), (end_x, end_y)])
+    def check_availability(self, turn, line):
+        line_string = LineString(line)
 
         # Must be one of the whole points
-        condition1 = ((start_x, start_y) in self.whole_points) and ((end_x, end_y) in self.whole_points)
+        condition1 = (line[0] in self.whole_points) and (line[1] in self.whole_points)
         
         # Must not skip a dot
         condition2 = True
         for point in self.whole_points:
-            if point==(start_x, start_y) or point==(end_x, end_y):
+            if point==line[0] or point==line[1]:
                 continue
             else:
                 if bool(line_string.intersection(Point(point))):
@@ -316,7 +318,7 @@ class SYSTEM():
         # Must not cross another line
         condition3 = True
         for l in self.drawn_lines:
-            if len(list(set([(start_x, start_y), (end_x, end_y), l[0], l[1]]))) == 3:
+            if len(list(set([line[0], line[1], l[0], l[1]]))) == 3:
                 continue
             elif bool(line_string.intersection(LineString(l))):
                 condition3 = False
@@ -333,7 +335,7 @@ class SYSTEM():
             return False    
     
     def check_endgame(self):
-        remain_to_draw = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability(self.turn, point1[0], point1[1], point2[0], point2[1])]
+        remain_to_draw = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability(self.turn, [point1, point2])]
         return False if remain_to_draw else True
 
     # Score Checking Functions
@@ -356,7 +358,7 @@ class SYSTEM():
             for line1, line2 in product(point1_connected, point2_connected):
                 
                 # Check if it is a triangle & Skip the triangle has occupied
-                triangle = self.organize_triangle(list(set(chain(*[line, line1, line2]))))
+                triangle = self.organize_points(list(set(chain(*[line, line1, line2]))))
                 if len(triangle) != 3 or triangle in self.triangles:
                     continue
 
@@ -375,19 +377,11 @@ class SYSTEM():
                     self.occupy_triangle(triangle, color=color)
                 
     # Organization Functions
-    def organize_points(self, start_x, start_y, end_x, end_y):
-        if start_x < end_x:
-            return start_x, start_y, end_x, end_y
-        else:
-            if start_x == end_x and start_y < end_y:
-                return start_x, start_y, end_x, end_y
-            else:
-                return end_x, end_y, start_x, start_y
+    def organize_points(self, point_list):
+        point_list.sort(key=lambda x: (x[0], x[1]))
+        return point_list
     
-    def organize_triangle(self, triangle):
-        triangle.sort(key=lambda x: (x[0], x[1]))
-        return triangle
-    
+    # Go back to prior
     def cancel(self):
         if self.drawn_lines:
             recent = self.drawn_lines[-1]
