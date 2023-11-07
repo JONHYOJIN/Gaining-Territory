@@ -9,7 +9,7 @@
 
 게임을 이기기 위해서 알고리즘을 생성해 보세요!
 
-알고리즘은 [machine.py](https://github.com/JONHYOJIN/Dots-N-Boxes/blob/main/machine.py) 내부에 MACHINE class를 수정해야 합니다.
+알고리즘은 [machine.py](https://github.com/JONHYOJIN/Gaining-Territory/blob/main/machine.py) 내부에 MACHINE class를 수정해야 합니다.
 
 변수를 추가할 수도 있고, 함수를 추가할 수도 있습니다.
 
@@ -21,7 +21,7 @@ If you download(clone) the codes, the machine select a line to draw randomly at 
 
 You should make an algorithm for the machine to win the game!
 
-For this, you have to modify the **MACHINE class** in the [machine.py](https://github.com/JONHYOJIN/Dots-N-Boxes/blob/main/machine.py).
+For this, you have to modify the **MACHINE class** in the [machine.py](https://github.com/JONHYOJIN/Gaining-Territory/blob/main/machine.py).
 
 You can add some variables, or even make a new function in it.
 
