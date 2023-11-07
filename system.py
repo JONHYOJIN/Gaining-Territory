@@ -1,7 +1,9 @@
 from tkinter import *
 from tkinter import ttk
-from itertools import product, chain
+from itertools import product, chain, combinations
 import random
+import os
+import pandas as pd
 from shapely.geometry import LineString, Point, Polygon
 
 from machine import MACHINE
@@ -18,7 +20,6 @@ class SYSTEM():
             - drawn_lines: 그려진 Line들의 집합
                * Line: [(x1, y1), (x2, y2)]
                     -> x값이 작은 점이 항상 왼쪽에 위치 (x값이 같을 경우, y값을 기준으로 함; organize_points 함수를 통해 적용)
-            - whole_lines: 전체 Line 집합에서 그려진 Line이 제외된 집합 (초기에는 전체 집합)
             - whole_points: 전체 점(Point) 좌표의 집합
             - location: 좌표 Index 집합 (e.g. [0, 1, 2, 3, 4, 5] for 5x5 Board)
             - triangles: 점령된 Triagnle 집합 (점수 계산 및 취소에 사용 됨)
@@ -71,26 +72,28 @@ class SYSTEM():
         self.combostyle.theme_use('combostyle') 
 
         # Board
-        self.label_options = Label(self.root, text="#. of Dots:", background=BACKGROUND)
+        self.label_options = Label(self.root, text="Select Map:", background=BACKGROUND)
         self.label_options.place(x=10, y=10)
 
-        self.combobox_board = ttk.Combobox(self.root, textvariable=StringVar(), width=8, background=BACKGROUND)
-        self.combobox_board['value'] = [5, 10, 15, 20]
-        self.combobox_board.set(10)
-        self.combobox_board.place(x=85, y=12)
+        board_list = ["Random 5", "Random 10", "Random 15", "Random 20"]
+        board_list.extend(os.listdir("./board_library"))
+        self.combobox_board = ttk.Combobox(self.root, textvariable=StringVar(), width=20, background=BACKGROUND)
+        self.combobox_board['value'] = board_list
+        self.combobox_board.set("Random 10")
+        self.combobox_board.place(x=90, y=12)
 
         # Turn
         self.label_firstturn = Label(self.root, text="First Turn:", background=BACKGROUND)
-        self.label_firstturn.place(x=180, y=10)
+        self.label_firstturn.place(x=300, y=10)
 
         self.combobox_firstturn = ttk.Combobox(self.root, textvariable=StringVar(), width=8, background=BACKGROUND)
         self.combobox_firstturn['value'] = PLAYERS
         self.combobox_firstturn.set("USER")
-        self.combobox_firstturn.place(x=248, y=12)
+        self.combobox_firstturn.place(x=368, y=12)
 
         # Start Game
         self.button_startgame = Button(self.root, text="Start Game!", width=10, fg="grey20", highlightbackground=BACKGROUND, command=self.set_new_board)
-        self.button_startgame.place(x=360, y=8)
+        self.button_startgame.place(x=480, y=8)
 
         # Canvas
         self.board = Canvas(self.root, width=CANVAS_SIZE, height=CANVAS_SIZE, background="white")
@@ -176,12 +179,16 @@ class SYSTEM():
             초기 Board 설정
         """
         # The number of Dots
-        self.num_dots = int(self.combobox_board.get())
+        map_info = self.combobox_board.get()
+        if "Random" in map_info:
+            self.num_dots = int(map_info.split(" ")[-1])
+            random_selection = True
+        else:
+            random_selection = False
 
         # Initialization
         self.score = [0, 0] # USER, MACHINE
         self.drawn_lines = [] # Drawn Lines
-        self.whole_lines = [] # Not Drawn Lines
         self.whole_points = []
         self.location = []
         self.triangles = []
@@ -191,9 +198,9 @@ class SYSTEM():
 
         self.initialize_turn()
 
-        self.interval = CANVAS_SIZE // (self.board_size+2)
-        self.offset = (CANVAS_SIZE % (self.board_size+2)) // 2
-        self.location = [x*self.interval+self.offset for x in range(1, (self.board_size+2))]
+        self.interval = CANVAS_SIZE // (self.board_size+1)
+        self.offset = (CANVAS_SIZE % (self.board_size+1)) // 2
+        self.location = [x*self.interval+self.offset for x in range(1, (self.board_size+1))]
         idx_offset = 200 // self.board_size
 
         # Background Grid
@@ -207,7 +214,12 @@ class SYSTEM():
             for idx_y, _ in enumerate(self.location):
                 self.whole_points.append((idx_x, idx_y))
 
-        self.whole_points = random.sample(self.whole_points, self.num_dots)
+        if random_selection:
+            self.whole_points = random.sample(self.whole_points, self.num_dots)
+        else:
+            map = pd.read_csv(os.path.join("./board_library", map_info), index_col="Unnamed: 0")
+            self.whole_points = [point for point in self.whole_points if map.loc[point[1]][point[0]]]
+            self.num_dots = len(self.whole_points)
 
         for idx_x, idx_y in self.whole_points:
             self.circle(self.location[idx_x], self.location[idx_y], CIRCLE_COLOR)
@@ -245,10 +257,10 @@ class SYSTEM():
 
             self.label_userscore2.config(text=self.score[0])
 
-            if not self.whole_lines or max(self.score)>=((self.board_size**2 // 2) + 1):
+            if self.check_endgame():
                 f = lambda i: self.score[i]
                 winner = PLAYERS[max(range(len(self.score)), key=f)]
-                self.label_result.config(text=f"The Winner is {winner}!!")
+                self.label_result.config(text=f"The Winner is the {winner}!!")
 
         else:
             self.label_warning.config(text="Check the turn or the input!")
@@ -277,7 +289,7 @@ class SYSTEM():
 
             self.label_machinescore2.config(text=self.score[1])
 
-            if not self.whole_lines or max(self.score)>=((self.board_size**2 // 2) + 1):
+            if self.check_endgame():
                 f = lambda i: self.score[i]
                 winner = PLAYERS[max(range(len(self.score)), key=f)]
                 self.label_result.config(text=f"The Winner is the {winner}!!")
@@ -319,6 +331,10 @@ class SYSTEM():
             return True
         else:
             return False    
+    
+    def check_endgame(self):
+        remain_to_draw = [[point1, point2] for (point1, point2) in list(combinations(self.whole_points, 2)) if self.check_availability(self.turn, point1[0], point1[1], point2[0], point2[1])]
+        return False if remain_to_draw else True
 
     # Score Checking Functions
     def check_triangle(self, line):
