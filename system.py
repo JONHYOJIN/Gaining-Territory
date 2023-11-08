@@ -195,7 +195,6 @@ class SYSTEM():
         self.location = []
         self.triangles = []
         self.turn = None
-        self.cancel_changeturn = True
         self.board.delete(ALL)
 
         self.initialize_turn()
